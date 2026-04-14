@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.2 — 2026-04-14
+
+### Release artifacts
+- **Renamed binaries from rust-style triples to Bun-style slugs.** Drops the redundant `unknown` vendor token and the rust-only `-pc-windows-msvc` / `-apple-darwin` suffixes. The new names match what users see in `bun build --target=...` and in Bun's own release downloads.
+
+  | Before | After |
+  | --- | --- |
+  | `snippy-mcp-x86_64-unknown-linux-gnu` | `snippy-mcp-linux-x64` |
+  | `snippy-mcp-aarch64-unknown-linux-gnu` | `snippy-mcp-linux-arm64` |
+  | `snippy-mcp-x86_64-unknown-linux-musl` | `snippy-mcp-linux-x64-musl` |
+  | `snippy-mcp-aarch64-unknown-linux-musl` | `snippy-mcp-linux-arm64-musl` |
+  | `snippy-mcp-x86_64-apple-darwin` | `snippy-mcp-darwin-x64` |
+  | `snippy-mcp-aarch64-apple-darwin` | `snippy-mcp-darwin-arm64` |
+  | `snippy-mcp-x86_64-pc-windows-msvc.exe` | `snippy-mcp-windows-x64.exe` |
+  | _(not previously shipped)_ | `snippy-mcp-windows-arm64.exe` |
+
+  Anything pinned to the old filenames in install scripts will need to update. The `--only=` filter accepts the new slugs (`--only=linux-x64`) or the underlying `bunTarget` (`--only=bun-linux-x64`).
+- **Expanded the release matrix to all eight Bun-supported triples.** `package.json#forge.targets` flipped from `"linux"` to `"all"`, so a tag push now ships linux (gnu + musl × x64 + arm64), darwin (x64 + arm64), and windows (x64 + arm64). Re-checked `bun-windows-arm64` against current Bun (1.3.x) — it now compiles cleanly via `bun build --compile`, so the previous "windows-arm64 not supported" carve-out is gone.
+- **`forge.ts` simplification.** Dropped the parallel `triple` field from the `Target` type — the artifact slug now derives from `bunTarget` by stripping the `bun-` prefix, which collapses two sources of truth into one. The CI smoke build's `--only=` filter updated to `linux-x64` accordingly.
+
 ## 0.2.1 — 2026-04-14
 
 A patch release. No public API or schema changes — the v0.2.0 tag was cut on a commit that failed the release gate on GitHub Actions runners (slower I/O than local dev), so v0.2.0 never published artifacts. v0.2.1 carries the underlying fix plus the release-pipeline hardening that was supposed to ship with it.

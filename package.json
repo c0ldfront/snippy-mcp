@@ -1,6 +1,6 @@
 {
 	"name": "snippy-mcp",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"type": "module",
 	"private": true,
 	"description": "MCP server for pushing, storing, tagging, and rendering reusable code standards, snippets, and resources",
@@ -42,7 +42,7 @@
 	"forge": {
 		"entry": "./src/cli.ts",
 		"binary": "snippy-mcp",
-		"targets": "linux",
+		"targets": "all",
 		"outDir": "./target"
 	}
 }
