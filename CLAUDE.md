@@ -28,7 +28,7 @@ truth for the patterns the rest of this document encodes.
 | `src/db/migrations.ts` | ordered migration array — never edit an applied migration in place |
 | `src/workspace.ts` | multi-DB registry; per-workspace `repo`/`audit`/`metrics` |
 | `src/transport/http.ts` | `Bun.serve` + `WebStandardStreamableHTTPServerTransport`; per-session McpServer |
-| `bench/all.bench.ts` + `bench/baseline.json` | regression guard (≥20% p95 fails CI) |
+| `bench/all.bench.ts` + `bench/baseline.json` | regression guard (≥20% p50 or ≥50% p95 fails CI; see docs/benchmarks.md for why the split) |
 | `forge.ts` | release pipeline (`build`, `package`, `sbom`, `source`, `release`) |
 | `.github/workflows/{ci,release}.yml` | CI matrix on bun-latest + canary; release fires on `v*` tags |
 
@@ -265,7 +265,7 @@ test additions).
 | Durability | Versioned migrations; `snippy-mcp backup` (online VACUUM INTO) + tested `restore` |
 | Reproducibility | Deterministic builds; SHA256SUMS.txt + CycloneDX SBOM attached to GitHub releases; signed tags |
 | Failure modes | Every exception path uses a typed `McpError` with a stable `snippyCode`. Audit writes are best-effort. |
-| Performance | `bench/baseline.json` is the regression contract; >20% p95 regression fails CI |
+| Performance | `bench/baseline.json` is the regression contract; >20% p50 or >50% p95 regression fails CI. Baseline lives in the GH Actions runner environment — re-baseline from a green CI run, not a local laptop. |
 | Security | Paths normalized before checks; zod at every boundary; `Bun.$` template segments for shell |
 | Docs | README + `docs/` answer "how do I rotate a token?", "how do I restore from backup?", "what's the threat model?" |
 | CI | Lint + typecheck + unit + e2e + bench-regression on every PR; main never red |

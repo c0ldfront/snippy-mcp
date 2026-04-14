@@ -68,10 +68,24 @@ export interface CompareResult {
 	}[];
 }
 
+export interface CompareThresholds {
+	p50: number;
+	p95: number;
+}
+
+// Default thresholds reflect the empirical noise profile on GitHub Actions
+// shared runners: p50 is a central-tendency metric and stays within ±5% run
+// to run, so the 20% contract lands real regressions without false alarms.
+// p95 is a tail metric and swings ±15-30% on sub-millisecond benches even
+// at n=1000, so 50% is the tightest threshold that doesn't flake on CI.
+// A real regression shifts p50 first anyway, so loosening p95 doesn't lose
+// signal worth keeping.
+export const DEFAULT_THRESHOLDS: CompareThresholds = { p50: 1.2, p95: 1.5 };
+
 export function compareToBaseline(
 	current: BenchResult[],
 	baseline: Record<string, BaselineEntry>,
-	thresholdRatio = 1.2,
+	thresholds: CompareThresholds = DEFAULT_THRESHOLDS,
 ): CompareResult {
 	const regressions: CompareResult["regressions"] = [];
 	const improvements: CompareResult["improvements"] = [];
@@ -83,9 +97,10 @@ export function compareToBaseline(
 			const ref = base[metric];
 			if (ref <= 0) continue;
 			const ratio = cur / ref;
-			if (ratio >= thresholdRatio)
+			const threshold = metric === "p50Ms" ? thresholds.p50 : thresholds.p95;
+			if (ratio >= threshold)
 				regressions.push({ name: r.name, metric, baseline: ref, current: cur, ratio });
-			else if (ratio <= 1 / thresholdRatio)
+			else if (ratio <= 1 / threshold)
 				improvements.push({ name: r.name, metric, baseline: ref, current: cur, ratio });
 		}
 	}

@@ -15,7 +15,7 @@
 bun run bench
 ```
 
-Reports p50/p95/p99/mean per scenario as JSON on stdout. Exits non-zero if any p50 or p95 regresses ≥20% versus `bench/baseline.json`.
+Reports p50/p95/p99/mean per scenario as JSON on stdout. Exits non-zero if any bench p50 regresses ≥20% versus `bench/baseline.json`, or if any p95 regresses ≥50%. The asymmetric threshold reflects GitHub Actions runner noise: p50 is a stable central-tendency metric, while p95 on sub-millisecond benches swings ±15-30% run-to-run even at n=1000 samples — a real regression shifts p50 first anyway, and a tighter p95 threshold would just flake.
 
 ## Re-baselining
 

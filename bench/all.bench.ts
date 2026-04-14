@@ -5,7 +5,7 @@ import { type BenchResult, bench, compareToBaseline, reportResult } from "./_har
 
 const PUSH_N = 1_000;
 const QUERY_DATASET = 10_000;
-const QUERY_RUNS = 200;
+const QUERY_RUNS = 1_000;
 const RENDER_RUNS = 5_000;
 
 async function pushBench(): Promise<BenchResult> {
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
 			}
 		}
 		if (cmp.regressions.length > 0) {
-			console.error("regressions (>=20% slower):");
+			console.error("regressions (p50 >=20% / p95 >=50% slower):");
 			for (const r of cmp.regressions) {
 				console.error(
 					`  ${r.name} ${r.metric}: ${r.baseline.toFixed(3)}ms → ${r.current.toFixed(3)}ms (×${r.ratio.toFixed(2)})`,
