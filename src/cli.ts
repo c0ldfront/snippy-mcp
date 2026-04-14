@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { unlink } from "node:fs/promises";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import pkg from "../package.json" with { type: "json" };
 import {
@@ -13,6 +14,14 @@ import { parseTokens } from "./mcp/auth.ts";
 import { buildServer } from "./mcp/server.ts";
 import { parseOriginAllowlist, startHttpServer } from "./transport/http.ts";
 import { parseWorkspaces, WorkspaceRegistry } from "./workspace.ts";
+
+async function unlinkIfExists(path: string): Promise<void> {
+	try {
+		await unlink(path);
+	} catch (e) {
+		if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+	}
+}
 
 export const VERSION: string = pkg.version;
 
@@ -178,7 +187,7 @@ async function runBackup(
 ): Promise<void> {
 	if (!registry.has(workspace)) throw new Error(`unknown workspace: ${workspace}`);
 	const ws = registry.get(workspace);
-	await Bun.$`rm -f ${out}`.quiet();
+	await unlinkIfExists(out);
 	ws.db.prepare("VACUUM INTO ?").run(out);
 	console.error(`backup written: ${out}`);
 	registry.closeAll();
@@ -202,7 +211,11 @@ async function runRestore(
 	}
 	ws.db.close();
 	registry.closeAll();
-	await Bun.$`rm -f ${target} ${target}-wal ${target}-shm`.quiet();
+	await Promise.all([
+		unlinkIfExists(target),
+		unlinkIfExists(`${target}-wal`),
+		unlinkIfExists(`${target}-shm`),
+	]);
 	await Bun.write(target, sourceFile);
 	console.error(`restore applied: ${target} ← ${source}`);
 }

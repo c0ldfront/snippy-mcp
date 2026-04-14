@@ -32,6 +32,16 @@ async function runCli(
 	return { stdout, stderr, exitCode };
 }
 
+function assertCliOk(
+	what: string,
+	res: { stdout: string; stderr: string; exitCode: number },
+): void {
+	if (res.exitCode === 0) return;
+	throw new Error(
+		`${what} exited ${res.exitCode}\n--- stderr ---\n${res.stderr}\n--- stdout ---\n${res.stdout}`,
+	);
+}
+
 describe("snippy-mcp backup / restore", () => {
 	test("backup writes a usable copy and restore re-applies it onto the source path", async () => {
 		const sourceDb = tmpPath(".db");
@@ -53,7 +63,7 @@ describe("snippy-mcp backup / restore", () => {
 		seed.close();
 
 		const backup = await runCli({ SNIPPY_DB: sourceDb }, "backup", "--out", backupOut);
-		expect(backup.exitCode).toBe(0);
+		assertCliOk("backup", backup);
 		expect(await Bun.file(backupOut).exists()).toBe(true);
 
 		// Mutate the source DB after backup.
@@ -80,7 +90,7 @@ describe("snippy-mcp backup / restore", () => {
 
 		// Restore — should rewind to BEFORE.
 		const restore = await runCli({ SNIPPY_DB: sourceDb }, "restore", "--in", backupOut);
-		expect(restore.exitCode).toBe(0);
+		assertCliOk("restore", restore);
 
 		const checkRestored = openDb(sourceDb);
 		expect(
