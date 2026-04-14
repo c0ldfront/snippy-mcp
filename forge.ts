@@ -170,6 +170,17 @@ function formatBytes(bytes: number): string {
 
 function filterTargets(targets: readonly Target[], only: string | null): Target[] {
 	if (!only) return [...targets];
+	// Exact triple/bunTarget match wins — comma-separated list supported. Prevents
+	// `--only=bun-linux-x64` from also matching `bun-linux-x64-musl` (canary Bun
+	// sometimes lags musl sidecars by a day, so the smoke build needs to pin one).
+	const wanted = only
+		.split(",")
+		.map((s) => s.trim())
+		.filter((s) => s !== "");
+	const exact = targets.filter(
+		(t) => wanted.includes(t.triple) || wanted.includes(t.bunTarget),
+	);
+	if (exact.length > 0) return exact;
 	const matches = targets.filter(
 		(t) => t.triple.includes(only) || t.bunTarget.includes(only),
 	);
