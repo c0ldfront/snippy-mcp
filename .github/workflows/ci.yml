@@ -27,8 +27,12 @@ jobs:
         run: bunx tsc --noEmit
       - name: Tests
         run: bun test
-      - name: Forge build (smoke)
-        run: bun run forge.ts build --profile=debug
+      - name: Forge build (smoke, native target only)
+        # Full cross-compile is exercised by the release workflow on `v*` tags,
+        # which uses bun-latest (guaranteed sidecar availability). Canary
+        # builds don't publish cross-compile sidecars for every point version,
+        # so the PR smoke only compiles the native runner target.
+        run: bun run forge.ts build --profile=debug --only=x86_64-unknown-linux-gnu
 
   bench:
     name: benchmarks (regression guard)
