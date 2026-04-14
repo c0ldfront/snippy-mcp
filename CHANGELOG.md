@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1 — 2026-04-14
+
+A patch release. No public API or schema changes — the v0.2.0 tag was cut on a commit that failed the release gate on GitHub Actions runners (slower I/O than local dev), so v0.2.0 never published artifacts. v0.2.1 carries the underlying fix plus the release-pipeline hardening that was supposed to ship with it.
+
+### Fixes
+- **Database open under contention** (`src/db/connection.ts`): set `PRAGMA busy_timeout = 5000` so concurrent opens of a WAL-mode database wait politely instead of failing instantly with `SQLITE_BUSY`. Surfaced as a flaky `cli-backup.test.ts` failure on the slower I/O of GitHub Actions runners (test seeds a DB in-process, closes it, then spawns the `restore` subprocess which raced the WAL checkpoint-on-close). Also hardens real-world cases like `backup` running while the HTTP transport serves requests.
+
+### Release pipeline
+- **`forge --only`** (`forge.ts`): prefer exact triple/bunTarget matches (comma-list aware) before falling back to substring, so `--only=bun-linux-x64` no longer also picks up `bun-linux-x64-musl`. Defensive — canary Bun sometimes lags musl sidecars by a day, so a CI smoke pinned to one triple needs to actually pin one.
+- **`.github/workflows/release.yml`**: aligned with the pipeline shape used across other apps in the same project family. Concurrency group on the tag ref (single-writer release), separate `check` re-run gate (lint + typecheck + tests + bench against the exact tagged commit, independent of `ci.yml`), tag/version/prerelease metadata resolution, CHANGELOG section auto-extracted into the GitHub Release body, OIDC-backed SLSA build-provenance attestation over the tarballs, multi-arch container published to `ghcr.io/c0ldfront/snippy-mcp` with provenance + SBOM + a separate SLSA attestation on the image digest. Fixed broken artifact globs that pointed at `target/*.tar.gz` / `target/SHA256SUMS.txt` instead of `target/packages/*.tar.gz` / `target/packages/SHA256SUMS.txt` — with `fail_on_unmatched_files: false`, the previous v0.2.0 release would have silently shipped without binaries or checksums even if the test suite had passed.
+
 ## 0.2.0 — 2026-04-13
 
 A v1 → v2 cut focused on the previously-deferred storage features and an enterprise-grade operations surface. See [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md) for the full breaking-change list.
