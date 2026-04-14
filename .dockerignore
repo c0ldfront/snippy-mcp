@@ -1,0 +1,11 @@
+node_modules
+target
+.git
+.github
+docs
+bench
+tests
+*.test.ts
+**/*.test.ts
+.snippy-mcp.db
+.snippy-mcp.db-*

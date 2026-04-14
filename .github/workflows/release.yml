@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: build, package, attach to GitHub release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Forge release (build + package + source bundle)
+        run: bun run forge.ts release
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: target
+        run: |
+          if compgen -G "*.tar.gz" > /dev/null; then sha256sum *.tar.gz > SHA256SUMS.txt; fi
+          if compgen -G "*.zip" > /dev/null; then sha256sum *.zip >> SHA256SUMS.txt; fi
+          cat SHA256SUMS.txt
+
+      - name: Generate CycloneDX SBOM
+        run: bun run forge.ts sbom --out target/SBOM.cyclonedx.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/*.tar.gz
+            target/*.zip
+            target/SHA256SUMS.txt
+            target/SBOM.cyclonedx.json
+          generate_release_notes: true
+          fail_on_unmatched_files: false
