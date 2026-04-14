@@ -23,6 +23,10 @@ async function unlinkIfExists(path: string): Promise<void> {
 	}
 }
 
+export class UsageError extends Error {
+	override readonly name = "UsageError";
+}
+
 export const VERSION: string = pkg.version;
 
 export function helpText(): string {
@@ -96,7 +100,7 @@ function parseArgs(argv: readonly string[]): CliMode {
 		else if (arg?.startsWith("--workspace=")) workspace = arg.slice("--workspace=".length);
 		else if (arg === "--workspace") {
 			const next = args[i + 1];
-			if (next === undefined) throw new Error("--workspace requires a value");
+			if (next === undefined) throw new UsageError("--workspace requires a value");
 			workspace = next;
 			i += 1;
 		} else if (arg === "audit") {
@@ -108,7 +112,7 @@ function parseArgs(argv: readonly string[]): CliMode {
 				auditLimit = Number.isFinite(parsed) ? parsed : 50;
 				break;
 			}
-			throw new Error(`unknown audit subcommand: ${sub ?? ""}`);
+			throw new UsageError(`unknown audit subcommand: ${sub ?? ""}`);
 		} else if (arg === "backup") {
 			const out = takeFlagValue(args, i + 1, "--out");
 			return { kind: "backup", out, workspace };
@@ -118,7 +122,7 @@ function parseArgs(argv: readonly string[]): CliMode {
 		} else if (arg === "generate") {
 			const formatName = args[i + 1];
 			if (formatName === undefined || !isFormat(formatName)) {
-				throw new Error(`generate requires a format: one of ${FORMATS.join(", ")}`);
+				throw new UsageError(`'generate' requires a format argument: one of ${FORMATS.join(", ")}`);
 			}
 			const flags = args.slice(i + 2);
 			let out: string | null = null;
@@ -159,6 +163,8 @@ function parseArgs(argv: readonly string[]): CliMode {
 				httpToken,
 				serverName,
 			};
+		} else if (arg !== undefined) {
+			throw new UsageError(`unknown argument: ${arg}`);
 		}
 	}
 	if (isAudit) return { kind: "audit-tail", limit: auditLimit ?? 50, workspace };
@@ -173,11 +179,11 @@ function takeFlagValue(args: readonly string[], startIndex: number, flag: string
 		if (tok.startsWith(`${flag}=`)) return tok.slice(flag.length + 1);
 		if (tok === flag) {
 			const v = args[j + 1];
-			if (v === undefined) throw new Error(`${flag} requires a value`);
+			if (v === undefined) throw new UsageError(`${flag} requires a value`);
 			return v;
 		}
 	}
-	throw new Error(`${flag} is required`);
+	throw new UsageError(`${flag} is required`);
 }
 
 async function runBackup(
@@ -377,4 +383,12 @@ async function runGenerate(mode: {
 	}
 }
 
-await main();
+try {
+	await main();
+} catch (err) {
+	if (err instanceof UsageError) {
+		process.stderr.write(`snippy-mcp: ${err.message}\nRun 'snippy-mcp --help' for usage.\n`);
+		process.exit(2);
+	}
+	throw err;
+}

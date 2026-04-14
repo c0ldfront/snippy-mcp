@@ -58,4 +58,22 @@ describe("snippy-mcp --help / --version", () => {
 		expect(exitCode).toBe(0);
 		expect(stdout.trim()).toBe(VERSION);
 	});
+
+	test("'generate' with no format exits 2 with a one-line usage message (no stack trace)", async () => {
+		const { stderr, stdout, exitCode } = await runCli("generate");
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("snippy-mcp:");
+		expect(stderr).toContain("requires a format");
+		expect(stderr).toContain("Run 'snippy-mcp --help'");
+		// No bundled stack frames or file paths leaking into user-facing stderr.
+		expect(stderr).not.toContain("/$bunfs/");
+		expect(stderr).not.toMatch(/^\s+at .+$/m);
+		expect(stdout).toBe("");
+	});
+
+	test("unknown top-level flag exits 2 instead of hanging in stdio mode", async () => {
+		const { stderr, exitCode } = await runCli("--generate");
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("unknown argument: --generate");
+	});
 });
