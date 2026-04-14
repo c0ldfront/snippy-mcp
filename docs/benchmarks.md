@@ -23,7 +23,7 @@ Reports p50/p95/p99/mean per scenario as JSON on stdout. Exits non-zero if any p
 bun run bench:baseline
 ```
 
-Run on a quiet machine, commit the resulting `bench/baseline.json`. The CI workflow (`.github/workflows/ci.yml`) checks against the committed baseline.
+The committed `bench/baseline.json` reflects **GitHub Actions runner hardware** (ubuntu-24.04 shared VM), not a developer laptop — the regression gate runs in CI, so the baseline has to match the environment it gates. If you re-baseline locally on a faster machine and commit that, every CI run will fail with phantom 20-40% "regressions" that are just hardware jitter. Re-baseline by copying the p50/p95 numbers out of a green CI run (or run `bun run bench:baseline` inside the same runner image).
 
 ## Interpreting CI failures
 
