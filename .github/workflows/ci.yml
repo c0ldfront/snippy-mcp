@@ -32,7 +32,7 @@ jobs:
         # which uses bun-latest (guaranteed sidecar availability). Canary
         # builds don't publish cross-compile sidecars for every point version,
         # so the PR smoke only compiles the native runner target.
-        run: bun run forge.ts build --profile=debug --only=x86_64-unknown-linux-gnu
+        run: bun run forge.ts build --profile=debug --only=linux-x64
 
   bench:
     name: benchmarks (regression guard)

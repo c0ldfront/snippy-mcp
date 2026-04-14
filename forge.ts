@@ -23,7 +23,6 @@ import { readdir, stat } from "node:fs/promises";
 
 type Target = {
 	bunTarget: string;
-	triple: string;
 	windows?: boolean;
 };
 
@@ -52,20 +51,20 @@ type Subcommand = {
 // ── Target presets ────────────────────────────────────────────────
 
 const LINUX_TARGETS: readonly Target[] = [
-	{ bunTarget: "bun-linux-x64", triple: "x86_64-unknown-linux-gnu" },
-	{ bunTarget: "bun-linux-arm64", triple: "aarch64-unknown-linux-gnu" },
-	{ bunTarget: "bun-linux-x64-musl", triple: "x86_64-unknown-linux-musl" },
-	{ bunTarget: "bun-linux-arm64-musl", triple: "aarch64-unknown-linux-musl" },
+	{ bunTarget: "bun-linux-x64" },
+	{ bunTarget: "bun-linux-arm64" },
+	{ bunTarget: "bun-linux-x64-musl" },
+	{ bunTarget: "bun-linux-arm64-musl" },
 ];
 
 const DARWIN_TARGETS: readonly Target[] = [
-	{ bunTarget: "bun-darwin-x64", triple: "x86_64-apple-darwin" },
-	{ bunTarget: "bun-darwin-arm64", triple: "aarch64-apple-darwin" },
+	{ bunTarget: "bun-darwin-x64" },
+	{ bunTarget: "bun-darwin-arm64" },
 ];
 
 const WINDOWS_TARGETS: readonly Target[] = [
-	{ bunTarget: "bun-windows-x64", triple: "x86_64-pc-windows-msvc", windows: true },
-	{ bunTarget: "bun-windows-arm64", triple: "aarch64-pc-windows-msvc", windows: true },
+	{ bunTarget: "bun-windows-x64", windows: true },
+	{ bunTarget: "bun-windows-arm64", windows: true },
 ];
 
 const PRESETS: Record<string, readonly Target[]> = {
@@ -131,7 +130,7 @@ function resolveTargets(spec: string | unknown[] | undefined): Target[] {
 	}
 	if (!Array.isArray(spec)) {
 		throw new Error(
-			"forge.targets must be a preset name (string) or an array of { bunTarget, triple }",
+			"forge.targets must be a preset name (string) or an array of { bunTarget }",
 		);
 	}
 	return spec.map((t, i) => {
@@ -142,12 +141,8 @@ function resolveTargets(spec: string | unknown[] | undefined): Target[] {
 		if (typeof obj["bunTarget"] !== "string") {
 			throw new Error(`forge.targets[${i}].bunTarget must be a string`);
 		}
-		if (typeof obj["triple"] !== "string") {
-			throw new Error(`forge.targets[${i}].triple must be a string`);
-		}
 		return {
 			bunTarget: obj["bunTarget"],
-			triple: obj["triple"],
 			windows: obj["windows"] === true,
 		};
 	});
@@ -155,8 +150,17 @@ function resolveTargets(spec: string | unknown[] | undefined): Target[] {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+// Slug used in artifact filenames and `--only=` filters. Strips Bun's
+// redundant `bun-` prefix so artifacts read like `snippy-mcp-linux-x64`
+// rather than the noisier rust-style triple.
+function slugOf(target: Target): string {
+	return target.bunTarget.startsWith("bun-")
+		? target.bunTarget.slice(4)
+		: target.bunTarget;
+}
+
 function artifactName(binary: string, target: Target): string {
-	const base = `${binary}-${target.triple}`;
+	const base = `${binary}-${slugOf(target)}`;
 	return target.windows ? `${base}.exe` : base;
 }
 
@@ -170,19 +174,19 @@ function formatBytes(bytes: number): string {
 
 function filterTargets(targets: readonly Target[], only: string | null): Target[] {
 	if (!only) return [...targets];
-	// Exact triple/bunTarget match wins — comma-separated list supported. Prevents
-	// `--only=bun-linux-x64` from also matching `bun-linux-x64-musl` (canary Bun
+	// Exact slug/bunTarget match wins — comma-separated list supported. Prevents
+	// `--only=linux-x64` from also matching `linux-x64-musl` (canary Bun
 	// sometimes lags musl sidecars by a day, so the smoke build needs to pin one).
 	const wanted = only
 		.split(",")
 		.map((s) => s.trim())
 		.filter((s) => s !== "");
 	const exact = targets.filter(
-		(t) => wanted.includes(t.triple) || wanted.includes(t.bunTarget),
+		(t) => wanted.includes(slugOf(t)) || wanted.includes(t.bunTarget),
 	);
 	if (exact.length > 0) return exact;
 	const matches = targets.filter(
-		(t) => t.triple.includes(only) || t.bunTarget.includes(only),
+		(t) => slugOf(t).includes(only) || t.bunTarget.includes(only),
 	);
 	if (matches.length === 0) {
 		throw new Error(`No targets match filter '${only}'`);
@@ -212,7 +216,7 @@ Options:
   --profile=<release|debug>   Build profile (default: release)
   --release                   Shorthand for --profile=release
   --debug                     Shorthand for --profile=debug
-  --only=<filter>             Only targets whose triple or bunTarget contains <filter>`,
+  --only=<filter>             Only targets whose slug or bunTarget matches <filter> (comma-separated)`,
 	async run(ctx, argv) {
 		const { profile, only } = parseBuildArgs(argv);
 		const targets = filterTargets(ctx.config.targets, only);
@@ -236,7 +240,7 @@ Options:
 
 		for (const target of targets) {
 			const outfile = `${outDir}/${artifactName(ctx.config.binary, target)}`;
-			const label = target.triple.padEnd(32);
+			const label = slugOf(target).padEnd(20);
 			process.stdout.write(`  ${label} ... `);
 			try {
 				if (profile === "release") {
@@ -265,7 +269,7 @@ Options:
 		if (failed.length > 0) {
 			console.error(`\n${failed.length} of ${results.length} target(s) failed:`);
 			for (const r of failed) {
-				console.error(`  - ${r.target.triple}`);
+				console.error(`  - ${slugOf(r.target)}`);
 				if (r.error) console.error(`    ${r.error.split("\n")[0]}`);
 			}
 			process.exit(1);
@@ -476,7 +480,7 @@ const targetsCmd: Subcommand = {
 	async run(ctx) {
 		console.log(`Targets for ${ctx.config.binary} v${ctx.version}:`);
 		for (const t of ctx.config.targets) {
-			console.log(`  ${t.triple.padEnd(32)}  (bun: ${t.bunTarget})`);
+			console.log(`  ${slugOf(t).padEnd(20)}  (bun: ${t.bunTarget})`);
 		}
 	},
 };
